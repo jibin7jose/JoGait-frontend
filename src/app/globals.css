@@ -228,42 +228,114 @@ h1 {
 }
 
 .dashboard-hero,
-.dashboard-grid {
+.dashboard-workspace {
   margin: 48px auto 0;
   max-width: 1120px;
 }
 
-.dashboard-grid {
+.dashboard-workspace {
   display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.35fr);
 }
 
-.dashboard-grid article {
+.patient-panel,
+.history-panel {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 24px;
 }
 
-.dashboard-grid span {
-  color: var(--accent);
-  font-weight: 900;
+.section-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 18px;
 }
 
-.dashboard-grid h2 {
-  font-size: 1.25rem;
-  margin: 18px 0 8px;
+.section-heading h2 {
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  line-height: 1.1;
+  margin: 0;
 }
 
-.dashboard-grid p {
+.patient-list,
+.session-list {
+  display: grid;
+  gap: 10px;
+}
+
+.patient-row {
+  align-items: center;
+  background: #fbfcfb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--foreground);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  min-height: 72px;
+  padding: 12px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.patient-row:hover,
+.patient-row.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+.patient-row span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.patient-row strong,
+.patient-row small {
+  overflow-wrap: anywhere;
+}
+
+.patient-row small,
+.patient-row time,
+.session-row p,
+.empty-state {
   color: var(--muted);
+}
+
+.patient-row time {
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+}
+
+.session-row {
+  align-items: center;
+  background: #fbfcfb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  min-height: 82px;
+  padding: 16px;
+}
+
+.session-row h3 {
+  font-size: 1rem;
+  margin: 0 0 6px;
+}
+
+.session-row p,
+.empty-state {
   line-height: 1.6;
   margin: 0;
 }
 
 @media (max-width: 760px) {
-  .dashboard-grid {
+  .dashboard-workspace {
     grid-template-columns: 1fr;
   }
 
