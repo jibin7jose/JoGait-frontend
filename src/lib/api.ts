@@ -11,6 +11,15 @@ export type Patient = {
   createdAt: string;
 };
 
+export type SessionMetric = {
+  id: string;
+  sessionId: string;
+  metricType: string;
+  value: number;
+  unit: string;
+  timestamp: string;
+};
+
 export type PatientSession = {
   id: string;
   patientId: string;
@@ -25,6 +34,7 @@ export type PatientSession = {
   flags?: string[];
   notes?: string | null;
   createdAt: string;
+  metrics?: SessionMetric[];
 };
 
 type ApiErrorBody = {

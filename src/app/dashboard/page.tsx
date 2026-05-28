@@ -124,6 +124,15 @@ export default function DashboardPage() {
     return <main className="dashboard-page">Loading...</main>;
   }
 
+  const latestSession = patientSessions[0] || null;
+  const maxRomTrend = buildMetricTrend(patientSessions, "kneeAngle", "max");
+  const repTrend = buildMetricTrend(patientSessions, "repCount", "sum");
+  const totalFlags = patientSessions.reduce(
+    (sum, patientSession) => sum + (patientSession.flags?.length || 0),
+    0,
+  );
+  const latestSymmetry = latestSession?.scoreSummary?.symmetryIndex;
+
   return (
     <main className="dashboard-page">
       <header className="topbar">
@@ -201,23 +210,56 @@ export default function DashboardPage() {
               No synced gait sessions for this patient yet.
             </p>
           ) : (
-            <div className="session-list">
-              {patientSessions.map((patientSession) => (
-                <article className="session-row" key={patientSession.id}>
-                  <div>
-                    <h3>{formatDate(patientSession.startTime)}</h3>
-                    <p>
-                      Device {patientSession.deviceId} -{" "}
-                      {patientSession.flags?.length
-                        ? `${patientSession.flags.length} flags`
-                        : "No flags"}
-                    </p>
-                  </div>
+            <div className="patient-detail">
+              <div className="metric-summary">
+                <article>
+                  <span>Latest score</span>
                   <strong>
-                    {formatScore(patientSession.scoreSummary?.overallScore)}
+                    {formatScore(latestSession?.scoreSummary?.overallScore)}
                   </strong>
                 </article>
-              ))}
+                <article>
+                  <span>Symmetry</span>
+                  <strong>{formatRatio(latestSymmetry)}</strong>
+                </article>
+                <article>
+                  <span>Sessions</span>
+                  <strong>{patientSessions.length}</strong>
+                </article>
+                <article>
+                  <span>Flags</span>
+                  <strong>{totalFlags}</strong>
+                </article>
+              </div>
+
+              <div className="chart-grid">
+                <TrendCard
+                  label="Max knee ROM"
+                  points={maxRomTrend}
+                  unit="deg"
+                />
+                <TrendCard label="Rep volume" points={repTrend} unit="reps" />
+              </div>
+
+              <div className="session-list">
+                {patientSessions.map((patientSession) => (
+                  <article className="session-row" key={patientSession.id}>
+                    <div>
+                      <h3>{formatDate(patientSession.startTime)}</h3>
+                      <p>
+                        Device {patientSession.deviceId} -{" "}
+                        {patientSession.metrics?.length || 0} metrics -{" "}
+                        {patientSession.flags?.length
+                          ? `${patientSession.flags.length} flags`
+                          : "No flags"}
+                      </p>
+                    </div>
+                    <strong>
+                      {formatScore(patientSession.scoreSummary?.overallScore)}
+                    </strong>
+                  </article>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -240,4 +282,100 @@ function formatScore(value?: number) {
   }
 
   return `${Math.round(value)}%`;
+}
+
+function formatRatio(value?: number) {
+  if (typeof value !== "number") {
+    return "--";
+  }
+
+  return value.toFixed(2);
+}
+
+type TrendPoint = {
+  label: string;
+  value: number;
+};
+
+function buildMetricTrend(
+  sessions: PatientSession[],
+  metricType: string,
+  mode: "max" | "sum",
+): TrendPoint[] {
+  return sessions
+    .slice()
+    .reverse()
+    .map((patientSession) => {
+      const values =
+        patientSession.metrics
+          ?.filter((metric) => metric.metricType === metricType)
+          .map((metric) => metric.value) || [];
+
+      if (values.length === 0) {
+        return null;
+      }
+
+      const value =
+        mode === "max"
+          ? Math.max(...values)
+          : values.reduce((sum, nextValue) => sum + nextValue, 0);
+
+      return {
+        label: formatDate(patientSession.startTime),
+        value,
+      };
+    })
+    .filter((point): point is TrendPoint => Boolean(point));
+}
+
+function TrendCard({
+  label,
+  points,
+  unit,
+}: {
+  label: string;
+  points: TrendPoint[];
+  unit: string;
+}) {
+  const latestPoint = points.at(-1);
+
+  return (
+    <article className="trend-card">
+      <div>
+        <span>{label}</span>
+        <strong>
+          {latestPoint ? `${Math.round(latestPoint.value)} ${unit}` : "--"}
+        </strong>
+      </div>
+      {points.length > 1 ? (
+        <svg
+          aria-label={`${label} trend`}
+          className="trend-line"
+          preserveAspectRatio="none"
+          viewBox="0 0 100 42"
+        >
+          <polyline points={buildPolyline(points)} />
+        </svg>
+      ) : (
+        <p className="empty-state">Need two sessions for trend.</p>
+      )}
+    </article>
+  );
+}
+
+function buildPolyline(points: TrendPoint[]) {
+  const values = points.map((point) => point.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const xStep = 100 / Math.max(points.length - 1, 1);
+
+  return points
+    .map((point, index) => {
+      const x = index * xStep;
+      const y = 38 - ((point.value - min) / range) * 32;
+
+      return `${x},${y}`;
+    })
+    .join(" ");
 }
