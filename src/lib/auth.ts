@@ -25,6 +25,7 @@ type LoginPayload = {
 type RegisterPayload = LoginPayload & {
   name: string;
   role: string;
+  setupCode: string;
 };
 
 async function requestAuth(
@@ -60,6 +61,25 @@ export function login(payload: LoginPayload) {
 
 export function register(payload: RegisterPayload) {
   return requestAuth("/api/auth/register", payload);
+}
+
+export async function validateSession(session: AuthResponse) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    headers: {
+      Authorization: `Bearer ${session.token}`,
+    },
+  });
+
+  const data = (await response.json().catch(() => null)) as
+    | { user?: JoGaitUser; error?: string }
+    | null;
+
+  if (!response.ok || !data?.user) {
+    clearSession();
+    throw new Error(data?.error || "Session expired. Please sign in again.");
+  }
+
+  return { ...session, user: data.user };
 }
 
 export function saveSession(session: AuthResponse) {

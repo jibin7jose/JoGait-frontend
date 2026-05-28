@@ -2,33 +2,72 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import {
   Patient,
   PatientSession,
+  createPatient,
   getPatientHistory,
   getPatients,
 } from "@/lib/api";
-import { AuthResponse, clearSession, getSession } from "@/lib/auth";
+import {
+  AuthResponse,
+  clearSession,
+  getSession,
+  saveSession,
+  validateSession,
+} from "@/lib/auth";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [session] = useState<AuthResponse | null>(() => getSession());
+  const [session, setSession] = useState<AuthResponse | null>(() => getSession());
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientSessions, setPatientSessions] = useState<PatientSession[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isCreatingPatient, setIsCreatingPatient] = useState(false);
   const [error, setError] = useState("");
+  const [patientFormError, setPatientFormError] = useState("");
+  const [patientFormMessage, setPatientFormMessage] = useState("");
 
   useEffect(() => {
     if (!session) {
       router.replace("/login");
+      setIsCheckingAuth(false);
+      return;
     }
-  }, [router, session]);
+
+    let isMounted = true;
+
+    validateSession(session)
+      .then((validatedSession) => {
+        if (!isMounted) {
+          return;
+        }
+
+        saveSession(validatedSession);
+        setSession(validatedSession);
+      })
+      .catch(() => {
+        if (isMounted) {
+          router.replace("/login");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsCheckingAuth(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
 
   useEffect(() => {
-    if (!session) {
+    if (!session || isCheckingAuth) {
       return;
     }
 
@@ -70,10 +109,10 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [session]);
+  }, [isCheckingAuth, session]);
 
   useEffect(() => {
-    if (!session || !selectedPatient) {
+    if (!session || isCheckingAuth || !selectedPatient) {
       return;
     }
 
@@ -113,14 +152,50 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [selectedPatient, session]);
+  }, [isCheckingAuth, selectedPatient, session]);
 
   function handleSignOut() {
     clearSession();
     router.replace("/login");
   }
 
-  if (!session) {
+  async function handleCreatePatient(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!session) {
+      return;
+    }
+
+    setIsCreatingPatient(true);
+    setPatientFormError("");
+    setPatientFormMessage("");
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const name = String(formData.get("name") || "");
+    const email = String(formData.get("email") || "");
+    const password = String(formData.get("password") || "");
+
+    try {
+      const patient = await createPatient(session, { name, email, password });
+
+      setPatients((currentPatients) => [patient, ...currentPatients]);
+      setSelectedPatient(patient);
+      setPatientSessions([]);
+      setPatientFormMessage("Patient account created.");
+      form.reset();
+    } catch (createError) {
+      setPatientFormError(
+        createError instanceof Error
+          ? createError.message
+          : "Unable to create patient account",
+      );
+    } finally {
+      setIsCreatingPatient(false);
+    }
+  }
+
+  if (!session || isCheckingAuth) {
     return <main className="dashboard-page">Loading...</main>;
   }
 
@@ -156,9 +231,43 @@ export default function DashboardPage() {
       <section className="dashboard-workspace" aria-label="Patient dashboard">
         <div className="patient-panel">
           <div className="section-heading">
-            <p className="eyebrow">Patients</p>
-            <h2>Roster</h2>
+            <div>
+              <p className="eyebrow">Patients</p>
+              <h2>Roster</h2>
+            </div>
           </div>
+
+          <form className="patient-create-form" onSubmit={handleCreatePatient}>
+            <label>
+              Name
+              <input name="name" type="text" autoComplete="name" required />
+            </label>
+            <label>
+              Email
+              <input name="email" type="email" autoComplete="email" required />
+            </label>
+            <label>
+              Temporary password
+              <input
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+            </label>
+
+            {patientFormError ? (
+              <p className="form-error">{patientFormError}</p>
+            ) : null}
+            {patientFormMessage ? (
+              <p className="form-success">{patientFormMessage}</p>
+            ) : null}
+
+            <button type="submit" disabled={isCreatingPatient}>
+              {isCreatingPatient ? "Creating..." : "Create patient"}
+            </button>
+          </form>
 
           {isLoadingPatients ? (
             <p className="empty-state">Loading patients...</p>

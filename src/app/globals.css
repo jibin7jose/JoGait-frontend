@@ -111,6 +111,7 @@ h1 {
 
 .hero-actions a,
 .auth-form button,
+.patient-create-form button,
 .topbar button {
   align-items: center;
   background: var(--accent);
@@ -153,12 +154,14 @@ h1 {
   font-size: clamp(2rem, 4vw, 3.4rem);
 }
 
-.auth-form {
+.auth-form,
+.patient-create-form {
   display: grid;
   gap: 16px;
 }
 
-.auth-form label {
+.auth-form label,
+.patient-create-form label {
   color: var(--foreground);
   display: grid;
   font-size: 0.92rem;
@@ -167,7 +170,8 @@ h1 {
 }
 
 .auth-form input,
-.auth-form select {
+.auth-form select,
+.patient-create-form input {
   background: #fbfcfb;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -178,17 +182,20 @@ h1 {
 }
 
 .auth-form input:focus,
-.auth-form select:focus {
+.auth-form select:focus,
+.patient-create-form input:focus {
   border-color: var(--accent);
   outline: 3px solid rgba(15, 118, 110, 0.14);
 }
 
 .auth-form button,
+.patient-create-form button,
 .topbar button {
   background: var(--accent);
 }
 
 .auth-form button:hover,
+.patient-create-form button:hover,
 .topbar button:hover {
   background: var(--accent-strong);
 }
@@ -196,6 +203,13 @@ h1 {
 .form-error {
   color: var(--danger);
   font-size: 0.9rem;
+  margin: 0;
+}
+
+.form-success {
+  color: var(--accent-strong);
+  font-size: 0.9rem;
+  font-weight: 700;
   margin: 0;
 }
 
@@ -265,6 +279,12 @@ h1 {
 .session-list {
   display: grid;
   gap: 10px;
+}
+
+.patient-create-form {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+  padding-bottom: 20px;
 }
 
 .patient-detail {
