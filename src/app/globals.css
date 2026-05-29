@@ -112,6 +112,7 @@ h1 {
 .hero-actions a,
 .auth-form button,
 .patient-create-form button,
+.security-form button,
 .topbar button {
   align-items: center;
   background: var(--accent);
@@ -196,6 +197,7 @@ h1 {
 
 .auth-form button:hover,
 .patient-create-form button:hover,
+.security-form button:hover,
 .topbar button:hover {
   background: var(--accent-strong);
 }
@@ -242,9 +244,18 @@ h1 {
 }
 
 .dashboard-hero,
+.security-panel,
 .dashboard-workspace {
   margin: 48px auto 0;
   max-width: 1120px;
+}
+
+.security-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 20px;
+  padding: 24px;
 }
 
 .dashboard-workspace {
@@ -285,6 +296,41 @@ h1 {
   border-bottom: 1px solid var(--line);
   margin-bottom: 20px;
   padding-bottom: 20px;
+}
+
+.security-form {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.security-form label {
+  color: var(--foreground);
+  display: grid;
+  font-size: 0.92rem;
+  font-weight: 700;
+  gap: 8px;
+}
+
+.security-form input {
+  background: #fbfcfb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--foreground);
+  min-height: 46px;
+  padding: 0 12px;
+  width: 100%;
+}
+
+.security-form input:focus {
+  border-color: var(--accent);
+  outline: 3px solid rgba(15, 118, 110, 0.14);
+}
+
+.security-form button {
+  align-self: end;
+  grid-column: 1 / -1;
+  justify-self: start;
 }
 
 .patient-detail {
@@ -425,6 +471,10 @@ h1 {
 }
 
 @media (max-width: 760px) {
+  .security-form {
+    grid-template-columns: 1fr;
+  }
+
   .dashboard-workspace {
     grid-template-columns: 1fr;
   }

@@ -12,7 +12,8 @@ import {
 } from "@/lib/api";
 import {
   AuthResponse,
-  clearSession,
+  changePassword,
+  logout,
   getSession,
   saveSession,
   validateSession,
@@ -28,9 +29,12 @@ export default function DashboardPage() {
   const [isLoadingPatients, setIsLoadingPatients] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isCreatingPatient, setIsCreatingPatient] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [error, setError] = useState("");
   const [patientFormError, setPatientFormError] = useState("");
   const [patientFormMessage, setPatientFormMessage] = useState("");
+  const [securityFormError, setSecurityFormError] = useState("");
+  const [securityFormMessage, setSecurityFormMessage] = useState("");
 
   useEffect(() => {
     if (!session) {
@@ -154,9 +158,53 @@ export default function DashboardPage() {
     };
   }, [isCheckingAuth, selectedPatient, session]);
 
-  function handleSignOut() {
-    clearSession();
+  async function handleSignOut() {
+    await logout(session);
     router.replace("/login");
+  }
+
+  async function handleChangePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!session) {
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    setSecurityFormError("");
+    setSecurityFormMessage("");
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const currentPassword = String(formData.get("currentPassword") || "");
+    const newPassword = String(formData.get("newPassword") || "");
+    const confirmPassword = String(formData.get("confirmPassword") || "");
+
+    if (newPassword !== confirmPassword) {
+      setSecurityFormError("New passwords do not match.");
+      setIsUpdatingPassword(false);
+      return;
+    }
+
+    try {
+      const nextSession = await changePassword(session, {
+        currentPassword,
+        newPassword,
+      });
+
+      saveSession(nextSession);
+      setSession(nextSession);
+      setSecurityFormMessage("Password updated successfully.");
+      form.reset();
+    } catch (changeError) {
+      setSecurityFormError(
+        changeError instanceof Error
+          ? changeError.message
+          : "Unable to update password",
+      );
+    } finally {
+      setIsUpdatingPassword(false);
+    }
   }
 
   async function handleCreatePatient(event: FormEvent<HTMLFormElement>) {
@@ -226,6 +274,58 @@ export default function DashboardPage() {
           Review patient progress, inspect recent gait sessions, and choose who
           needs follow-up next.
         </p>
+      </section>
+
+      <section className="security-panel" aria-label="Account security">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Account</p>
+            <h2>Security</h2>
+          </div>
+        </div>
+
+        <form className="security-form" onSubmit={handleChangePassword}>
+          <label>
+            Current password
+            <input
+              name="currentPassword"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          <label>
+            New password
+            <input
+              name="newPassword"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              required
+            />
+          </label>
+          <label>
+            Confirm new password
+            <input
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              required
+            />
+          </label>
+
+          {securityFormError ? (
+            <p className="form-error">{securityFormError}</p>
+          ) : null}
+          {securityFormMessage ? (
+            <p className="form-success">{securityFormMessage}</p>
+          ) : null}
+
+          <button type="submit" disabled={isUpdatingPassword}>
+            {isUpdatingPassword ? "Updating..." : "Update password"}
+          </button>
+        </form>
       </section>
 
       <section className="dashboard-workspace" aria-label="Patient dashboard">
