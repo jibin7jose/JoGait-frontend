@@ -11,6 +11,15 @@ export type Patient = {
   createdAt: string;
 };
 
+export type SessionMetric = {
+  id: string;
+  sessionId: string;
+  metricType: string;
+  value: number;
+  unit: string;
+  timestamp: string;
+};
+
 export type PatientSession = {
   id: string;
   patientId: string;
@@ -25,17 +34,30 @@ export type PatientSession = {
   flags?: string[];
   notes?: string | null;
   createdAt: string;
+  metrics?: SessionMetric[];
 };
 
 type ApiErrorBody = {
   error?: string;
 };
 
-async function request<T>(path: string, session: AuthResponse): Promise<T> {
+type RequestOptions = {
+  body?: unknown;
+  method?: "GET" | "POST";
+};
+
+async function request<T>(
+  path: string,
+  session: AuthResponse,
+  options: RequestOptions = {},
+): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: options.method || "GET",
     headers: {
       Authorization: `Bearer ${session.token}`,
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
     },
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
   const data = (await response.json().catch(() => null)) as
@@ -62,6 +84,18 @@ async function request<T>(path: string, session: AuthResponse): Promise<T> {
 export async function getPatients(session: AuthResponse) {
   const data = await request<{ patients: Patient[] }>("/api/patients", session);
   return data.patients;
+}
+
+export async function createPatient(
+  session: AuthResponse,
+  payload: { name: string; email: string; password: string },
+) {
+  const data = await request<{ patient: Patient }>("/api/patients", session, {
+    method: "POST",
+    body: payload,
+  });
+
+  return data.patient;
 }
 
 export async function getPatientHistory(

@@ -111,6 +111,8 @@ h1 {
 
 .hero-actions a,
 .auth-form button,
+.patient-create-form button,
+.security-form button,
 .topbar button {
   align-items: center;
   background: var(--accent);
@@ -153,12 +155,14 @@ h1 {
   font-size: clamp(2rem, 4vw, 3.4rem);
 }
 
-.auth-form {
+.auth-form,
+.patient-create-form {
   display: grid;
   gap: 16px;
 }
 
-.auth-form label {
+.auth-form label,
+.patient-create-form label {
   color: var(--foreground);
   display: grid;
   font-size: 0.92rem;
@@ -167,7 +171,8 @@ h1 {
 }
 
 .auth-form input,
-.auth-form select {
+.auth-form select,
+.patient-create-form input {
   background: #fbfcfb;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -178,17 +183,21 @@ h1 {
 }
 
 .auth-form input:focus,
-.auth-form select:focus {
+.auth-form select:focus,
+.patient-create-form input:focus {
   border-color: var(--accent);
   outline: 3px solid rgba(15, 118, 110, 0.14);
 }
 
 .auth-form button,
+.patient-create-form button,
 .topbar button {
   background: var(--accent);
 }
 
 .auth-form button:hover,
+.patient-create-form button:hover,
+.security-form button:hover,
 .topbar button:hover {
   background: var(--accent-strong);
 }
@@ -196,6 +205,13 @@ h1 {
 .form-error {
   color: var(--danger);
   font-size: 0.9rem;
+  margin: 0;
+}
+
+.form-success {
+  color: var(--accent-strong);
+  font-size: 0.9rem;
+  font-weight: 700;
   margin: 0;
 }
 
@@ -228,9 +244,18 @@ h1 {
 }
 
 .dashboard-hero,
+.security-panel,
 .dashboard-workspace {
   margin: 48px auto 0;
   max-width: 1120px;
+}
+
+.security-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 20px;
+  padding: 24px;
 }
 
 .dashboard-workspace {
@@ -265,6 +290,117 @@ h1 {
 .session-list {
   display: grid;
   gap: 10px;
+}
+
+.patient-create-form {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+}
+
+.security-form {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.security-form label {
+  color: var(--foreground);
+  display: grid;
+  font-size: 0.92rem;
+  font-weight: 700;
+  gap: 8px;
+}
+
+.security-form input {
+  background: #fbfcfb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--foreground);
+  min-height: 46px;
+  padding: 0 12px;
+  width: 100%;
+}
+
+.security-form input:focus {
+  border-color: var(--accent);
+  outline: 3px solid rgba(15, 118, 110, 0.14);
+}
+
+.security-form button {
+  align-self: end;
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.patient-detail {
+  display: grid;
+  gap: 18px;
+}
+
+.metric-summary,
+.chart-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.chart-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.metric-summary article,
+.trend-card {
+  background: #fbfcfb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.metric-summary article {
+  display: grid;
+  gap: 8px;
+  min-height: 86px;
+}
+
+.metric-summary span,
+.trend-card span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metric-summary strong,
+.trend-card strong {
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  line-height: 1;
+}
+
+.trend-card {
+  display: grid;
+  gap: 14px;
+  min-height: 158px;
+}
+
+.trend-card > div {
+  display: grid;
+  gap: 8px;
+}
+
+.trend-line {
+  display: block;
+  height: 72px;
+  width: 100%;
+}
+
+.trend-line polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+  vector-effect: non-scaling-stroke;
 }
 
 .patient-row {
@@ -335,7 +471,16 @@ h1 {
 }
 
 @media (max-width: 760px) {
+  .security-form {
+    grid-template-columns: 1fr;
+  }
+
   .dashboard-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-summary,
+  .chart-grid {
     grid-template-columns: 1fr;
   }
 

@@ -2,33 +2,76 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import {
   Patient,
   PatientSession,
+  createPatient,
   getPatientHistory,
   getPatients,
 } from "@/lib/api";
-import { AuthResponse, clearSession, getSession } from "@/lib/auth";
+import {
+  AuthResponse,
+  changePassword,
+  logout,
+  getSession,
+  saveSession,
+  validateSession,
+} from "@/lib/auth";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [session] = useState<AuthResponse | null>(() => getSession());
+  const [session, setSession] = useState<AuthResponse | null>(() => getSession());
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientSessions, setPatientSessions] = useState<PatientSession[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isCreatingPatient, setIsCreatingPatient] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [error, setError] = useState("");
+  const [patientFormError, setPatientFormError] = useState("");
+  const [patientFormMessage, setPatientFormMessage] = useState("");
+  const [securityFormError, setSecurityFormError] = useState("");
+  const [securityFormMessage, setSecurityFormMessage] = useState("");
 
   useEffect(() => {
     if (!session) {
       router.replace("/login");
+      setIsCheckingAuth(false);
+      return;
     }
-  }, [router, session]);
+
+    let isMounted = true;
+
+    validateSession(session)
+      .then((validatedSession) => {
+        if (!isMounted) {
+          return;
+        }
+
+        saveSession(validatedSession);
+        setSession(validatedSession);
+      })
+      .catch(() => {
+        if (isMounted) {
+          router.replace("/login");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsCheckingAuth(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
 
   useEffect(() => {
-    if (!session) {
+    if (!session || isCheckingAuth) {
       return;
     }
 
@@ -70,10 +113,10 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [session]);
+  }, [isCheckingAuth, session]);
 
   useEffect(() => {
-    if (!session || !selectedPatient) {
+    if (!session || isCheckingAuth || !selectedPatient) {
       return;
     }
 
@@ -113,16 +156,105 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [selectedPatient, session]);
+  }, [isCheckingAuth, selectedPatient, session]);
 
-  function handleSignOut() {
-    clearSession();
+  async function handleSignOut() {
+    await logout(session);
     router.replace("/login");
   }
 
-  if (!session) {
+  async function handleChangePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!session) {
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    setSecurityFormError("");
+    setSecurityFormMessage("");
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const currentPassword = String(formData.get("currentPassword") || "");
+    const newPassword = String(formData.get("newPassword") || "");
+    const confirmPassword = String(formData.get("confirmPassword") || "");
+
+    if (newPassword !== confirmPassword) {
+      setSecurityFormError("New passwords do not match.");
+      setIsUpdatingPassword(false);
+      return;
+    }
+
+    try {
+      const nextSession = await changePassword(session, {
+        currentPassword,
+        newPassword,
+      });
+
+      saveSession(nextSession);
+      setSession(nextSession);
+      setSecurityFormMessage("Password updated successfully.");
+      form.reset();
+    } catch (changeError) {
+      setSecurityFormError(
+        changeError instanceof Error
+          ? changeError.message
+          : "Unable to update password",
+      );
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  }
+
+  async function handleCreatePatient(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!session) {
+      return;
+    }
+
+    setIsCreatingPatient(true);
+    setPatientFormError("");
+    setPatientFormMessage("");
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const name = String(formData.get("name") || "");
+    const email = String(formData.get("email") || "");
+    const password = String(formData.get("password") || "");
+
+    try {
+      const patient = await createPatient(session, { name, email, password });
+
+      setPatients((currentPatients) => [patient, ...currentPatients]);
+      setSelectedPatient(patient);
+      setPatientSessions([]);
+      setPatientFormMessage("Patient account created.");
+      form.reset();
+    } catch (createError) {
+      setPatientFormError(
+        createError instanceof Error
+          ? createError.message
+          : "Unable to create patient account",
+      );
+    } finally {
+      setIsCreatingPatient(false);
+    }
+  }
+
+  if (!session || isCheckingAuth) {
     return <main className="dashboard-page">Loading...</main>;
   }
+
+  const latestSession = patientSessions[0] || null;
+  const maxRomTrend = buildMetricTrend(patientSessions, "kneeAngle", "max");
+  const repTrend = buildMetricTrend(patientSessions, "repCount", "sum");
+  const totalFlags = patientSessions.reduce(
+    (sum, patientSession) => sum + (patientSession.flags?.length || 0),
+    0,
+  );
+  const latestSymmetry = latestSession?.scoreSummary?.symmetryIndex;
 
   return (
     <main className="dashboard-page">
@@ -144,12 +276,98 @@ export default function DashboardPage() {
         </p>
       </section>
 
+      <section className="security-panel" aria-label="Account security">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Account</p>
+            <h2>Security</h2>
+          </div>
+        </div>
+
+        <form className="security-form" onSubmit={handleChangePassword}>
+          <label>
+            Current password
+            <input
+              name="currentPassword"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          <label>
+            New password
+            <input
+              name="newPassword"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              required
+            />
+          </label>
+          <label>
+            Confirm new password
+            <input
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              required
+            />
+          </label>
+
+          {securityFormError ? (
+            <p className="form-error">{securityFormError}</p>
+          ) : null}
+          {securityFormMessage ? (
+            <p className="form-success">{securityFormMessage}</p>
+          ) : null}
+
+          <button type="submit" disabled={isUpdatingPassword}>
+            {isUpdatingPassword ? "Updating..." : "Update password"}
+          </button>
+        </form>
+      </section>
+
       <section className="dashboard-workspace" aria-label="Patient dashboard">
         <div className="patient-panel">
           <div className="section-heading">
-            <p className="eyebrow">Patients</p>
-            <h2>Roster</h2>
+            <div>
+              <p className="eyebrow">Patients</p>
+              <h2>Roster</h2>
+            </div>
           </div>
+
+          <form className="patient-create-form" onSubmit={handleCreatePatient}>
+            <label>
+              Name
+              <input name="name" type="text" autoComplete="name" required />
+            </label>
+            <label>
+              Email
+              <input name="email" type="email" autoComplete="email" required />
+            </label>
+            <label>
+              Temporary password
+              <input
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+            </label>
+
+            {patientFormError ? (
+              <p className="form-error">{patientFormError}</p>
+            ) : null}
+            {patientFormMessage ? (
+              <p className="form-success">{patientFormMessage}</p>
+            ) : null}
+
+            <button type="submit" disabled={isCreatingPatient}>
+              {isCreatingPatient ? "Creating..." : "Create patient"}
+            </button>
+          </form>
 
           {isLoadingPatients ? (
             <p className="empty-state">Loading patients...</p>
@@ -201,23 +419,56 @@ export default function DashboardPage() {
               No synced gait sessions for this patient yet.
             </p>
           ) : (
-            <div className="session-list">
-              {patientSessions.map((patientSession) => (
-                <article className="session-row" key={patientSession.id}>
-                  <div>
-                    <h3>{formatDate(patientSession.startTime)}</h3>
-                    <p>
-                      Device {patientSession.deviceId} -{" "}
-                      {patientSession.flags?.length
-                        ? `${patientSession.flags.length} flags`
-                        : "No flags"}
-                    </p>
-                  </div>
+            <div className="patient-detail">
+              <div className="metric-summary">
+                <article>
+                  <span>Latest score</span>
                   <strong>
-                    {formatScore(patientSession.scoreSummary?.overallScore)}
+                    {formatScore(latestSession?.scoreSummary?.overallScore)}
                   </strong>
                 </article>
-              ))}
+                <article>
+                  <span>Symmetry</span>
+                  <strong>{formatRatio(latestSymmetry)}</strong>
+                </article>
+                <article>
+                  <span>Sessions</span>
+                  <strong>{patientSessions.length}</strong>
+                </article>
+                <article>
+                  <span>Flags</span>
+                  <strong>{totalFlags}</strong>
+                </article>
+              </div>
+
+              <div className="chart-grid">
+                <TrendCard
+                  label="Max knee ROM"
+                  points={maxRomTrend}
+                  unit="deg"
+                />
+                <TrendCard label="Rep volume" points={repTrend} unit="reps" />
+              </div>
+
+              <div className="session-list">
+                {patientSessions.map((patientSession) => (
+                  <article className="session-row" key={patientSession.id}>
+                    <div>
+                      <h3>{formatDate(patientSession.startTime)}</h3>
+                      <p>
+                        Device {patientSession.deviceId} -{" "}
+                        {patientSession.metrics?.length || 0} metrics -{" "}
+                        {patientSession.flags?.length
+                          ? `${patientSession.flags.length} flags`
+                          : "No flags"}
+                      </p>
+                    </div>
+                    <strong>
+                      {formatScore(patientSession.scoreSummary?.overallScore)}
+                    </strong>
+                  </article>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -240,4 +491,100 @@ function formatScore(value?: number) {
   }
 
   return `${Math.round(value)}%`;
+}
+
+function formatRatio(value?: number) {
+  if (typeof value !== "number") {
+    return "--";
+  }
+
+  return value.toFixed(2);
+}
+
+type TrendPoint = {
+  label: string;
+  value: number;
+};
+
+function buildMetricTrend(
+  sessions: PatientSession[],
+  metricType: string,
+  mode: "max" | "sum",
+): TrendPoint[] {
+  return sessions
+    .slice()
+    .reverse()
+    .map((patientSession) => {
+      const values =
+        patientSession.metrics
+          ?.filter((metric) => metric.metricType === metricType)
+          .map((metric) => metric.value) || [];
+
+      if (values.length === 0) {
+        return null;
+      }
+
+      const value =
+        mode === "max"
+          ? Math.max(...values)
+          : values.reduce((sum, nextValue) => sum + nextValue, 0);
+
+      return {
+        label: formatDate(patientSession.startTime),
+        value,
+      };
+    })
+    .filter((point): point is TrendPoint => Boolean(point));
+}
+
+function TrendCard({
+  label,
+  points,
+  unit,
+}: {
+  label: string;
+  points: TrendPoint[];
+  unit: string;
+}) {
+  const latestPoint = points.at(-1);
+
+  return (
+    <article className="trend-card">
+      <div>
+        <span>{label}</span>
+        <strong>
+          {latestPoint ? `${Math.round(latestPoint.value)} ${unit}` : "--"}
+        </strong>
+      </div>
+      {points.length > 1 ? (
+        <svg
+          aria-label={`${label} trend`}
+          className="trend-line"
+          preserveAspectRatio="none"
+          viewBox="0 0 100 42"
+        >
+          <polyline points={buildPolyline(points)} />
+        </svg>
+      ) : (
+        <p className="empty-state">Need two sessions for trend.</p>
+      )}
+    </article>
+  );
+}
+
+function buildPolyline(points: TrendPoint[]) {
+  const values = points.map((point) => point.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const xStep = 100 / Math.max(points.length - 1, 1);
+
+  return points
+    .map((point, index) => {
+      const x = index * xStep;
+      const y = 38 - ((point.value - min) / range) * 32;
+
+      return `${x},${y}`;
+    })
+    .join(" ");
 }

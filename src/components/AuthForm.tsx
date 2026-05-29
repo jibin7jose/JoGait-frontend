@@ -34,6 +34,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             email,
             password,
             role: String(formData.get("role") || "clinician"),
+            setupCode: String(formData.get("setupCode") || ""),
           })
         : await login({ email, password });
 
@@ -82,20 +83,30 @@ export function AuthForm({ mode }: AuthFormProps) {
               name="password"
               type="password"
               autoComplete={isRegister ? "new-password" : "current-password"}
-              minLength={6}
+              minLength={8}
               required
             />
           </label>
 
           {isRegister ? (
-            <label>
-              Role
-              <select name="role" defaultValue="clinician">
-                <option value="clinician">Clinician</option>
-                <option value="patient">Patient</option>
-                <option value="admin">Admin</option>
-              </select>
-            </label>
+            <>
+              <label>
+                Role
+                <select name="role" defaultValue="clinician">
+                  <option value="clinician">Clinician</option>
+                  <option value="patient">Patient</option>
+                </select>
+              </label>
+
+              <label>
+                Setup code
+                <input
+                  name="setupCode"
+                  type="password"
+                  autoComplete="one-time-code"
+                />
+              </label>
+            </>
           ) : null}
 
           {error ? <p className="form-error">{error}</p> : null}
